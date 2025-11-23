@@ -1,0 +1,144 @@
+"""
+Web Scraping Script for E-commerce Product Categories
+Scrapes product categories and attributes from e-commerce website
+"""
+
+import time
+import selenium
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
+columns = ['Text', 'Button Text', 'Categories']
+max_attempts = 6
+
+DATA_FILE = './data/data.xlsx'
+DONE_FILE = './data/done.xlsx'
+
+df = pd.read_excel(DATA_FILE, usecols=columns)
+done = pd.read_excel(DONE_FILE, usecols=['Item', 'Processed'])
+
+data = df.values.tolist()
+processed_items = done.set_index('Item')['Processed'].to_dict()
+
+##Set initial websites and initiate chromedriver
+web ='https://www.ecommerce.com.tw/category'
+Chrome_driver_path = 'C:/Users/edwardchen/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe'
+
+#Environment setup
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument('User-Agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36"')
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+driver.maximize_window()
+driver.get(web)
+
+def extract_category_links(driver, base_xpath, num_columns):
+    links = {}
+    for i in range(1, num_columns + 1):
+        td_xpath = f'{base_xpath}/td[{i}]'
+        td_element = driver.find_element(By.XPATH, td_xpath)
+        a_elements = td_element.find_elements(By.XPATH, './/a')
+        for a_element in a_elements:
+            links[a_element.text] = a_element.get_attribute('href')
+    return links
+
+links_dict = {}
+# Click Categories 3C
+category_menu = driver.find_element(By.XPATH, '//li[text()="3C"]')
+category_menu.click()
+time.sleep(2)
+
+# Store subcategories from 3C
+links_dict = extract_category_links(driver, '/html/body/div[1]/div[2]/div/div/div[1]/div[1]/table/tbody/tr', 10)
+
+# Click Categories Home appliances
+category_menu = driver.find_element(By.XPATH, '//li[text()="Home appliances"]')
+category_menu.click()
+time.sleep(2)
+
+# Store subcategories from Home appliances
+links_dict.update(extract_category_links(driver, '/html/body/div[1]/div[2]/div/div/div[2]/div[1]/table/tbody/tr', 7))
+
+
+#click button is each subcategories
+for text, href in links_dict.items():
+    if text in processed_items:
+        print(f"Skipping already processed item: {text}")
+        continue
+    # Visit the URL associated with the subcategory
+    driver.get(href)
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//ul[@id="bt_cate_top"]')))
+    
+    # Find all <li> elements within the specified path
+    li_elements = driver.find_elements(By.XPATH, '//ul[@id="bt_cate_top"]/li/a')
+    
+    # Loop through each <li> element
+    for i in range(1, len(li_elements) + 1):
+        xpath = f'//ul[@id="bt_cate_top"]/li[{i}]/a'
+
+        # Retry mechanism
+        for attempt in range(max_attempts):
+            try:
+                # Wait for the element to be clickable
+                li_element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+                
+                button_text = li_element.text
+                if button_text == "More":
+                    li_element.click()
+                    time.sleep(2)
+                    break 
+                # Check if button_text already exists in the data list
+                if any(entry[1] == button_text for entry in data):
+                    print(f"Button text '{button_text}' already exists in data. Skipping...")
+                    break  # Skip processing this button
+                li_element.click()
+                time.sleep(1)  # Adjust the delay as needed
+                
+                print(f"Clicked on button: {button_text}")
+
+                rows_brand = driver.find_elements(By.XPATH, '//table[1]/tbody/tr[contains(@class, "goodsBrandTr")]')
+                index_elements = driver.find_elements(By.XPATH, '//*[@id="goodsAttrRoot"]/div[1]/table[1]/tbody/tr')
+
+                cat = []
+                for row in rows_brand:
+                    index_name = row.get_attribute('indexname')
+                    if index_name:
+                        print(f"Appending goodsBrandTr index_name: {index_name}")
+                        cat.append(index_name)
+
+                for elem in index_elements:
+                    index_name = elem.get_attribute('indexname')
+                    if index_name:
+                        print(f"Appending index_name: {index_name}")
+                        cat.append(index_name)
+                
+                data.append([text, button_text, cat]) 
+                # Exit the retry loop if click is successful
+                break
+            except TimeoutException:
+                # If TimeoutException occurs, retry after a short delay
+                print(f"Attempt {attempt+1}/{max_attempts}: Timed out waiting for element. Retrying...")
+                time.sleep(3)  # Adjust the delay as needed
+            except Exception as e:
+                # If any other exception occurs, handle it gracefully
+                print("An unexpected error occurred:", str(e))
+                 # Print the traceback for debugging
+                time.sleep(3)
+        else:
+             # If max_attempts reached without success, raise an exception
+             print(f"Max retry attempts exceeded for button at index {i}. Skipping...")
+            
+    processed_items[text] = True  # Mark this item as processed
+    print(f"appending {text}")
+    
+# Export file
+df = pd.DataFrame(data, columns=columns)
+done = pd.DataFrame(list(processed_items.items()), columns=['Item', 'Processed'])
+
+df.to_excel(DATA_FILE, index=False)
+done.to_excel(DONE_FILE, index=False)
