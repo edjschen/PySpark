@@ -6,7 +6,7 @@ PySpark ETL pipelines and Python web scraping for e-commerce analytics.
 
 ## Files
 
-### 1.`first_purchase_analysis.py` (PySpark)
+### 1.`first_purchase_analysis.ipynb` (PySpark)
 **Purpose**: Analyze first-time buyer behavior and customer lifetime value
 
 **Key Outputs**:
@@ -19,7 +19,7 @@ PySpark ETL pipelines and Python web scraping for e-commerce analytics.
 
 ---
 
-### 2. `log_processing_pipeline.py` (PySpark)
+### 2. `log_processing_pipeline.ipynb` (PySpark)
 **Purpose**: Process web server logs into structured session data
 
 **Key Features**:
@@ -46,7 +46,7 @@ PySpark ETL pipelines and Python web scraping for e-commerce analytics.
 3. Retry mechanism (6 attempts per element)
 4. Resume capability via checkpoint files
 
-**Outputs**: `./data/data.xlsx` (scraped data), `./data/done.xlsx` (progress tracker)
+**Outputs**: `./data.xlsx` (scraped data), `./done.xlsx` (progress tracker)
 
 
 
