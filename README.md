@@ -9,7 +9,7 @@ PySpark ETL pipelines and Python web scraping for e-commerce analytics.
 ### 1.`first_purchase_analysis.ipynb` (PySpark)
 **Purpose**: Analyze first-time buyer behavior and customer lifetime value
 
-**Key Outputs**:
+**Outputs**:
 - Time-to-first-purchase distribution (registration to first order)
 - Daily GMV and transaction counts per user
 - Top products purchased by new buyers (within 10 days)
@@ -22,7 +22,7 @@ PySpark ETL pipelines and Python web scraping for e-commerce analytics.
 ### 2. `log_processing_pipeline.ipynb` (PySpark)
 **Purpose**: Process web server logs into structured session data
 
-**Key Features**:
+**Features**:
 - Parse gzipped logs with custom delimiter (`<t@s>`)
 - Extract UTM parameters, referrer URLs, user agent data
 - Session identification (30-minute timeout rule)
